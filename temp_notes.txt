@@ -1,0 +1,3 @@
+The RGBXY space yields local, compact and edge aware superpixels, but does not guarantee compactness.
+K-means clustering in geodesic image distance. Geodesic image distance guarantees connectivity, while retaining the locality, compactness and edge awareness of SLIC superpixels.
+
