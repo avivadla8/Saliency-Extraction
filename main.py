@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import argparse
 from skimage.color import rgb2lab
 from scipy.spatial.distance import cdist
+from sys import argv
 
 def show_output(superpixels,rgb_image,mean_rgb,type):
     if type=="abstraction":
@@ -14,25 +15,31 @@ def show_output(superpixels,rgb_image,mean_rgb,type):
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel,:]
+        io.imsave('abstraction_'+str(argv[1]), (out_image * 255).astype('uint8'))
         fig = plt.figure("Abstraction")
     if type=="uniqueness":
         out_image = np.zeros(rgb_image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel]
+        io.imsave('uniqueness_'+str(argv[1]), (out_image * 255).astype('uint8'))
         fig = plt.figure("uniqueness")
     if type=="distribution":
         out_image = np.zeros(rgb_image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel]
+        io.imsave('distribution_'+str(argv[1]), (out_image * 255).astype('uint8'))
+
         fig = plt.figure("distribution")
     if type=="final_saliency":
         out_image = np.zeros(rgb_image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel]
+        io.imsave('saliency_'+str(argv[1]), (out_image * 255).astype('uint8'))
         fig = plt.figure("final_saliency")
+
     ax = fig.add_subplot(1,1,1)
     ax.imshow(out_image)
     plt.axis("off")
@@ -92,7 +99,7 @@ def apply_distribution(superpixels,mean_lab,mean_position):
     print mean_position.shape
     weighted_mean = np.dot(weight,mean_position)
     print weighted_mean.shape
-    #distribution = (cdist(mean_position,weighted_mean) ** 2 * weight).sum(axis=1)
+    # distribution = (cdist(mean_position,weighted_mean) ** 2 * weight).sum(axis=1)
     distribution = np.einsum('ij,ji->i', weight, cdist(mean_position, weighted_mean) ** 2)
     print distribution.shape
     return (distribution - distribution.min())/(distribution.max()-distribution.min() + 1e-13)
@@ -107,20 +114,20 @@ def apply_saliency(uniqueness,distribution,mean_lab,mean_position):
     return (weighted_saliency - weighted_saliency.min())/(weighted_saliency.max()-weighted_saliency.min() + 1e-13)
 
 # filename = "./image_dataset/DUT-OMRON-image/DUT-OMRON-image/im005.jpg"
-filename = "sample.jpg"
+filename = str(argv[1])
 rgb_image = io.imread(filename)
 print(rgb_image.shape)
 superpixels = apply_slic(500,rgb_image)
 print(superpixels.max()+1)
 print(superpixels.shape)
 mean_rgb,mean_lab,mean_position = apply_abstraction(superpixels,rgb_image)
-#show_output(superpixels,rgb_image,mean_rgb,"abstraction")
+show_output(superpixels,rgb_image,mean_rgb,"abstraction")
 
 uniqueness = apply_uniqueness(superpixels,mean_lab,mean_position)
 show_output(superpixels,rgb_image,uniqueness,"uniqueness")
 
 distribution = apply_distribution(superpixels,mean_lab,mean_position)
-#show_output(superpixels,rgb_image,distribution,"distribution")
+show_output(superpixels,rgb_image,1-distribution,"distribution")
 
 final_saliency = apply_saliency(uniqueness,distribution,mean_lab,mean_position)
-show_output(superpixels,rgb_image,distribution,"final_saliency")
+show_output(superpixels,rgb_image,final_saliency,"final_saliency")
