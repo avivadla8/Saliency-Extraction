@@ -7,43 +7,51 @@ import matplotlib.pyplot as plt
 import argparse
 from skimage.color import rgb2lab
 from scipy.spatial.distance import cdist
+from skimage.filters import threshold_otsu, threshold_local
 from sys import argv
 
-def show_output(superpixels,rgb_image,mean_rgb,type):
+import cv2
+
+def show_output(superpixels,image,mean_rgb,type):
     if type=="abstraction":
-        out_image = np.zeros(rgb_image.shape)
+        out_image = np.zeros(image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel,:]
-        io.imsave('abstraction_'+str(argv[1]), (out_image * 255).astype('uint8'))
+        # io.imsave('abstraction_'+str(argv[1]), (out_image * 255).astype('uint8'))
         fig = plt.figure("Abstraction")
     if type=="uniqueness":
-        out_image = np.zeros(rgb_image.shape)
+        out_image = np.zeros(image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel]
-        io.imsave('uniqueness_'+str(argv[1]), (out_image * 255).astype('uint8'))
+        # io.imsave('uniqueness_'+str(argv[1]), (out_image * 255).astype('uint8'))
         fig = plt.figure("uniqueness")
     if type=="distribution":
-        out_image = np.zeros(rgb_image.shape)
+        out_image = np.zeros(image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel]
-        io.imsave('distribution_'+str(argv[1]), (out_image * 255).astype('uint8'))
+        # io.imsave('distribution_'+str(argv[1]), (out_image * 255).astype('uint8'))
 
         fig = plt.figure("distribution")
     if type=="final_saliency":
-        out_image = np.zeros(rgb_image.shape)
+        out_image = np.zeros(image.shape)
         for superpixel in np.unique(superpixels):
             mask = superpixels == superpixel
             out_image[mask,:] = mean_rgb[superpixel]
-        io.imsave('saliency_'+str(argv[1]), (out_image * 255).astype('uint8'))
+        # io.imsave('saliency_'+str(argv[1]), (out_image * 255).astype('uint8'))
         fig = plt.figure("final_saliency")
+
+    if type=="Binary Mask":
+        out_image = image
+        fig = plt.figure("Binary Mask")
 
     ax = fig.add_subplot(1,1,1)
     ax.imshow(out_image)
     plt.axis("off")
     plt.show()
+    return out_image
 
 def apply_slic(numSegments,rgb_image):
     image = img_as_float(rgb_image)
@@ -95,13 +103,9 @@ def apply_distribution(superpixels,mean_lab,mean_position):
     weight = np.exp(-cdist(mean_lab,mean_lab) ** 2/(2*20.0*20.0))
     weight = weight/(weight.sum(axis=1)[:,None])
 
-    print weight.shape
-    print mean_position.shape
     weighted_mean = np.dot(weight,mean_position)
-    print weighted_mean.shape
     # distribution = (cdist(mean_position,weighted_mean) ** 2 * weight).sum(axis=1)
     distribution = np.einsum('ij,ji->i', weight, cdist(mean_position, weighted_mean) ** 2)
-    print distribution.shape
     return (distribution - distribution.min())/(distribution.max()-distribution.min() + 1e-13)
 
 def apply_saliency(uniqueness,distribution,mean_lab,mean_position):
@@ -130,4 +134,32 @@ distribution = apply_distribution(superpixels,mean_lab,mean_position)
 show_output(superpixels,rgb_image,1-distribution,"distribution")
 
 final_saliency = apply_saliency(uniqueness,distribution,mean_lab,mean_position)
-show_output(superpixels,rgb_image,final_saliency,"final_saliency")
+out = show_output(superpixels,rgb_image,final_saliency,"final_saliency")
+
+global_thresh = threshold_otsu(out[:,:,0])
+binary_global = out[:,:,0] > global_thresh
+final = np.zeros(out.shape)
+final[:,:,0] = binary_global
+final[:,:,1] = binary_global
+final[:,:,2] = binary_global
+show_output(superpixels,final,global_thresh,"Binary Mask")
+
+img = cv2.medianBlur(out[:,:,0],5)
+th3 = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,101,2)
+final = np.zeros(out.shape)
+final[:,:,0] = th3
+final[:,:,1] = th3
+final[:,:,2] = th3
+show_output(superpixels,final,final,"Binary Mask")
+
+bgdModel = np.zeros((1,65),np.float64)
+fgdModel = np.zeros((1,65),np.float64)
+
+mask = np.zeros(rgb_image.shape[:2],np.uint8)
+mask[binary_global == False] = 0
+mask[binary_global == True] = 1
+
+mask, bgdModel, fgdModel = cv2.grabCut(rgb_image,mask,None,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_MASK)
+mask = np.where((mask==2)|(mask==0),0,1).astype('uint8')
+fin_img = rgb_image*mask[:,:,np.newaxis]
+plt.imshow(fin_img),plt.show()
