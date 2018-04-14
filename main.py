@@ -10,6 +10,9 @@ from scipy.spatial.distance import cdist
 from skimage.filters import threshold_otsu, threshold_local
 from sys import argv
 
+
+from slic_segmentation import *
+
 import cv2
 
 def show_output(superpixels,image,mean_rgb,type):
@@ -55,9 +58,11 @@ def show_output(superpixels,image,mean_rgb,type):
 
 def apply_slic(numSegments,rgb_image):
     image = img_as_float(rgb_image)
-    image = rgb2lab(image)
-    segments = slic(image, n_segments = numSegments, sigma = 5,convert2lab = False)
+    # image = rgb2lab(image)
+    # segments = slic(image, n_segments = numSegments, sigma = 5,convert2lab = False)
 
+    p = SLIC(rgb_image, numSegments, 40)
+    segments = p.iterate_times(5)
     ## Plotting the segments
     # fig = plt.figure("Superpixels -- %d segments" % (numSegments))
     # ax = fig.add_subplot(1, 1, 1)
@@ -117,49 +122,57 @@ def apply_saliency(uniqueness,distribution,mean_lab,mean_position):
     weighted_saliency = np.dot(weight,saliency)
     return (weighted_saliency - weighted_saliency.min())/(weighted_saliency.max()-weighted_saliency.min() + 1e-13)
 
-# filename = "./image_dataset/DUT-OMRON-image/DUT-OMRON-image/im005.jpg"
-filename = str(argv[1])
-rgb_image = io.imread(filename)
-print(rgb_image.shape)
-superpixels = apply_slic(500,rgb_image)
-print(superpixels.max()+1)
-print(superpixels.shape)
-mean_rgb,mean_lab,mean_position = apply_abstraction(superpixels,rgb_image)
-show_output(superpixels,rgb_image,mean_rgb,"abstraction")
+def perform_saliency(rgb_image):
+    superpixels = apply_slic(500,rgb_image)
+    # print(superpixels.max()+1)
+    # print(superpixels.shape)
+    mean_rgb,mean_lab,mean_position = apply_abstraction(superpixels,rgb_image)
+    show_output(superpixels,rgb_image,mean_rgb,"abstraction")
 
-uniqueness = apply_uniqueness(superpixels,mean_lab,mean_position)
-show_output(superpixels,rgb_image,uniqueness,"uniqueness")
+    uniqueness = apply_uniqueness(superpixels,mean_lab,mean_position)
+    show_output(superpixels,rgb_image,uniqueness,"uniqueness")
 
-distribution = apply_distribution(superpixels,mean_lab,mean_position)
-show_output(superpixels,rgb_image,1-distribution,"distribution")
+    distribution = apply_distribution(superpixels,mean_lab,mean_position)
+    show_output(superpixels,rgb_image,1-distribution,"distribution")
 
-final_saliency = apply_saliency(uniqueness,distribution,mean_lab,mean_position)
-out = show_output(superpixels,rgb_image,final_saliency,"final_saliency")
+    final_saliency = apply_saliency(uniqueness,distribution,mean_lab,mean_position)
+    out = show_output(superpixels,rgb_image,final_saliency,"final_saliency")
 
-global_thresh = threshold_otsu(out[:,:,0])
-binary_global = out[:,:,0] > global_thresh
-final = np.zeros(out.shape)
-final[:,:,0] = binary_global
-final[:,:,1] = binary_global
-final[:,:,2] = binary_global
-show_output(superpixels,final,global_thresh,"Binary Mask")
+    global_thresh = threshold_otsu(out[:,:,0])
+    binary_global = out[:,:,0] > global_thresh
+    final = np.zeros(out.shape)
+    final[:,:,0] = binary_global
+    final[:,:,1] = binary_global
+    final[:,:,2] = binary_global
+    show_output(superpixels,final,global_thresh,"Binary Mask")
 
-img = cv2.medianBlur(out[:,:,0],5)
-th3 = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,101,2)
-final = np.zeros(out.shape)
-final[:,:,0] = th3
-final[:,:,1] = th3
-final[:,:,2] = th3
-show_output(superpixels,final,final,"Binary Mask")
+    out = out.astype(np.uint8)
+    img = cv2.medianBlur(out[:,:,0],5)
+    img = out[:,:,0]
+    th3 = cv2.adaptiveThreshold(img,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,cv2.THRESH_BINARY,11,2)
+    final = np.zeros(out.shape)
+    final[:,:,0] = th3
+    final[:,:,1] = th3
+    final[:,:,2] = th3
+    final = final.astype(np.uint8)
+    show_output(superpixels,final,final,"Binary Mask")
 
-bgdModel = np.zeros((1,65),np.float64)
-fgdModel = np.zeros((1,65),np.float64)
+    bgdModel = np.zeros((1,65),np.float64)
+    fgdModel = np.zeros((1,65),np.float64)
 
-mask = np.zeros(rgb_image.shape[:2],np.uint8)
-mask[binary_global == False] = 0
-mask[binary_global == True] = 1
+    mask = np.zeros(rgb_image.shape[:2],np.uint8)
+    mask[binary_global == False] = 0
+    mask[binary_global == True] = 1
 
-mask, bgdModel, fgdModel = cv2.grabCut(rgb_image,mask,None,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_MASK)
-mask = np.where((mask==2)|(mask==0),0,1).astype('uint8')
-fin_img = rgb_image*mask[:,:,np.newaxis]
-plt.imshow(fin_img),plt.show()
+    mask, bgdModel, fgdModel = cv2.grabCut(rgb_image,mask,None,bgdModel,fgdModel,5,cv2.GC_INIT_WITH_MASK)
+    mask = np.where((mask==2)|(mask==0),0,1).astype('uint8')
+    fin_img = rgb_image*mask[:,:,np.newaxis]
+    plt.imshow(fin_img),plt.show()
+
+
+if __name__=='__main__':
+    # filename = "./image_dataset/DUT-OMRON-image/DUT-OMRON-image/im005.jpg"
+    filename = str(argv[1])
+    rgb_image = io.imread(filename)
+    perform_saliency(rgb_image,filename)
+
