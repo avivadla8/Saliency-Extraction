@@ -30,3 +30,16 @@
 * https://in.mathworks.com/help/images/ref/imseggeodesic.html
 * https://sites.google.com/site/uqchang/home/cv-code
 
+
+## Usage:
+
+* main.py --- It is implementation of initial Paper
+ * usage : python main.py img_filename
+
+* SaliencyFilter.py --- It is extension of Above paper where it is performed pixel wise
+ * usage : python SaliencyFilter.py img_filename
+
+* SaliencyOptimization.py --- It is implementation of Energy Minimization technique
+ * usage : python SaliencyOptimization.py img_filename
+
+
