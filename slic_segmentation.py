@@ -125,7 +125,7 @@ class SLIC:
 
 	def save_current_image(self, name):
 		image_arr = np.copy(self.data)
-		count = 0
+		count = -1
 		superpixels = np.zeros(image_arr.shape[:2],dtype=int)
 		for cluster in self.clusters:
 			count +=1

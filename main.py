@@ -10,7 +10,6 @@ from scipy.spatial.distance import cdist
 from skimage.filters import threshold_otsu, threshold_local
 from sys import argv
 
-
 from slic_segmentation import *
 
 import cv2
@@ -62,7 +61,7 @@ def apply_slic(numSegments,rgb_image):
     # segments = slic(image, n_segments = numSegments, sigma = 5,convert2lab = False)
 
     p = SLIC(rgb_image, numSegments, 40)
-    segments = p.iterate_times(5)
+    segments = p.iterate_times(2)
     ## Plotting the segments
     # fig = plt.figure("Superpixels -- %d segments" % (numSegments))
     # ax = fig.add_subplot(1, 1, 1)
@@ -174,5 +173,4 @@ if __name__=='__main__':
     # filename = "./image_dataset/DUT-OMRON-image/DUT-OMRON-image/im005.jpg"
     filename = str(argv[1])
     rgb_image = io.imread(filename)
-    perform_saliency(rgb_image,filename)
-
+    perform_saliency(rgb_image)
