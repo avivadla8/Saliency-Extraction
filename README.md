@@ -1,3 +1,5 @@
+
+
 # 	Contrast Based Filtering for Salient Region Detection
 
 ## Main Paper:-
@@ -42,4 +44,5 @@
 * SaliencyOptimization.py --- It is implementation of Energy Minimization technique
  * usage : python SaliencyOptimization.py img_filename
 
-
+* video_saliency.py --- It processes video frames to generate a saliency output video
+ * usage : python video_saliency.py input_video output_video
